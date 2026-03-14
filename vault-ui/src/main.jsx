@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import { WagmiProvider, createConfig, http } from 'wagmi'
+import { injected } from 'wagmi/connectors'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const somniaShannon = {
@@ -15,6 +16,7 @@ const somniaShannon = {
 
 const config = createConfig({
   chains: [somniaShannon],
+  connectors: [injected()],
   transports: {
     [somniaShannon.id]: http(),
   },

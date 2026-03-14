@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWatchContractEvent, useConnect, useDisconnect } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info } from 'lucide-react';
+import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power } from 'lucide-react';
 import './App.css';
 
 const CONTRACT_ADDRESS = '0x2f1ca27ebca50119ddd20920ad2ddb9d551c8b5e';
@@ -16,64 +16,41 @@ const ABI = [
   {"inputs":[],"name":"resetVault","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"inputs":[],"name":"panicRescue","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"inputs":[{"internalType":"uint256","name":"_newThreshold","type":"uint256"}],"name":"updateThreshold","outputs":[],"stateMutability":"nonpayable","type":"function"},
-  {"inputs":[],"name":"unlockTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+  {"inputs":[],"name":"unlockTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"anonymous":false,"inputs":[{"indexed":false,"internalType":"enum FluxVault.DefconLevel","name":"newLevel","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"triggerAmount","type":"uint256"},{"indexed":true,"internalType":"address","name":"attacker","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"DefconChanged","type":"event"}
 ];
 
-// Industry Standard Defcon Mapping (5 is Safe, 1 is Crisis)
 const DEFCON_CONFIG = {
-  0: { level: 5, label: 'SECURE', color: '#10b981', glow: '0 0 40px rgba(16, 185, 129, 0.4)', description: 'System integrity optimal. Shield active and monitoring network streams.' },
-  1: { level: 4, label: 'GUARD', color: '#fbbf24', glow: '0 0 40px rgba(251, 191, 36, 0.4)', description: 'Increased anomaly signals. Automated withdrawal limits imposed.' },
-  2: { level: 3, label: 'SENTINEL', color: '#f97316', glow: '0 0 40px rgba(249, 115, 22, 0.4)', description: 'High-risk exploit detected. All asset movements frozen.' },
-  3: { level: 1, label: 'LOCKDOWN', color: '#ef4444', glow: '0 0 40px rgba(239, 68, 68, 0.4)', description: 'CRITICAL BREACH. Auto-Rescue Protocol initialized.' }
+  0: { level: 5, label: 'SECURE', color: '#10b981', health: 100, description: 'Neural systems reporting optimal health. Monitoring the network pulse.' },
+  1: { level: 4, label: 'GUARD', color: '#fbbf24', health: 75, description: 'Minor anomalies detected in the block stream. Limits imposed.' },
+  2: { level: 3, label: 'SENTINEL', color: '#f97316', health: 40, description: 'Exploit signature identified. Locking all asset movement.' },
+  3: { level: 1, label: 'LOCKDOWN', color: '#ef4444', health: 0, description: 'CRITICAL THREAT. Assets migrated to neural cold storage.' }
 };
 
 const NeuralMap = ({ defconColor }) => {
   const canvasRef = useRef(null);
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animationFrameId;
-    let particles = [];
+    const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d');
+    let animationFrameId; let particles = [];
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     class Particle {
       constructor() { this.reset(); }
-      reset() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 0.4;
-        this.vy = (Math.random() - 0.5) * 0.4;
-        this.size = Math.random() * 2 + 0.5;
-      }
-      update() {
-        this.x += this.vx; this.y += this.vy;
-        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-      }
-      draw() {
-        ctx.fillStyle = defconColor; ctx.globalAlpha = 0.15;
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
-      }
+      reset() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.vx = (Math.random() - 0.5) * 0.3; this.vy = (Math.random() - 0.5) * 0.3; this.size = Math.random() * 2; }
+      update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > canvas.width) this.vx *= -1; if (this.y < 0 || this.y > canvas.height) this.vy *= -1; }
+      draw() { ctx.fillStyle = defconColor; ctx.globalAlpha = 0.12; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
     }
     const init = () => { resize(); particles = Array.from({ length: 45 }, () => new Particle()); };
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => { p.update(); p.draw(); });
+      ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); });
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 180) {
-            ctx.strokeStyle = defconColor; ctx.globalAlpha = 0.08 * (1 - dist / 180);
-            ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
-          }
+          const dist = Math.sqrt((particles[i].x - particles[j].x)**2 + (particles[i].y - particles[j].y)**2);
+          if (dist < 180) { ctx.strokeStyle = defconColor; ctx.globalAlpha = 0.05 * (1 - dist / 180); ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke(); }
         }
       }
       animationFrameId = requestAnimationFrame(animate);
     };
-    window.addEventListener('resize', resize);
-    init(); animate();
+    window.addEventListener('resize', resize); init(); animate();
     return () => { cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', resize); };
   }, [defconColor]);
   return <canvas ref={canvasRef} className="neural-map-canvas" />;
@@ -81,21 +58,51 @@ const NeuralMap = ({ defconColor }) => {
 
 export default function App() {
   const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
   const [amount, setAmount] = useState('');
   const [newThreshold, setNewThreshold] = useState('');
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab ] = useState('DASHBOARD');
+  const [lastAttacker, setLastAttacker] = useState('NONE DETECTED');
+  const [gasSaved, setGasSaved] = useState(0);
+
   const { writeContract: executeWrite } = useWriteContract();
 
-  const { data: defconLevel } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon' });
+  const { data: defconLevel, refetch: refetchDefcon } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon' });
   const { data: isPaused } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused' });
   const { data: threshold } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold' });
   const { data: unlockTime } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'unlockTime' });
 
   const defcon = DEFCON_CONFIG[defconLevel] || DEFCON_CONFIG[0];
-  const addLog = (msg, type = 'info') => setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 8));
+  const addLog = (msg, type = 'info') => setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 10));
 
-  useEffect(() => { if (isConnected) addLog(`Node connection verified. Monitoring secure.`, 'success'); }, [isConnected, address]);
+  useWatchContractEvent({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    eventName: 'DefconChanged',
+    onLogs(logs) {
+      const event = logs[0].args;
+      setLastAttacker(event.attacker || 'ANONYMOUS');
+      setGasSaved(prev => prev + 120000); 
+      addLog(`⚠️ DEFCON SHIFT: ${DEFCON_CONFIG[event.newLevel].label} - Reason: ${event.reason}`, 'error');
+      refetchDefcon();
+    },
+  });
+
+  useEffect(() => { 
+    if (isConnected) addLog(`Neural link established with ${address?.slice(0, 8)}...`, 'success');
+  }, [isConnected, address]);
+
+  const handleWalletAction = () => {
+    if (isConnected) {
+      disconnect();
+      addLog("Neural link severed.", "error");
+    } else {
+      connect({ connector: connectors[0] });
+    }
+  };
 
   return (
     <div className="app-container" style={{ '--accent': defcon.color }}>
@@ -120,10 +127,13 @@ export default function App() {
           ))}
         </nav>
         <div className="header-stats">
-          <div className="stat-item connection">
-            <div className={`status-dot ${isConnected ? 'active' : ''}`} />
-            <span>{isConnected ? 'NODE LINKED' : 'OFFLINE'}</span>
-          </div>
+          <button 
+            className={`wallet-btn ${isConnected ? 'active' : ''}`} 
+            onClick={handleWalletAction}
+          >
+            {isConnected ? <Power size={14} /> : <Zap size={14} />}
+            <span>{isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'CONNECT WALLET'}</span>
+          </button>
         </div>
       </header>
 
@@ -132,36 +142,40 @@ export default function App() {
           {activeTab === 'DASHBOARD' && (
             <motion.div key="db" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="dashboard-content">
               <section className="dashboard-column">
-                <div className="shield-card" style={{ borderColor: defcon.color }}>
+                <div className="shield-card" style={{ borderColor: defcon.color, boxShadow: defcon.glow }}>
                   <div className="defcon-ring">
                     <Shield className="shield-icon" size={70} color={defcon.color} />
-                    <motion.div className="orbit" animate={{ rotate: 360 }} transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}>
-                      <div className="orbit-dot" style={{ background: defcon.color }} />
+                    <motion.div className="orbit" animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}>
+                      <div className="orbit-dot" style={{ background: defcon.color, boxShadow: `0 0 10px ${defcon.color}` }} />
                     </motion.div>
                   </div>
                   <div className="status-info">
                     <div className="defcon-header">
-                      <span className="defcon-number">DEFCON {defcon.level}</span>
+                      <span className="defcon-number">SECURITY STATE: DEFCON {defcon.level}</span>
                       <h2 style={{ color: defcon.color }}>{defcon.label}</h2>
                     </div>
                     <p>{defcon.description}</p>
                     <div className="security-badges">
-                      <div className="badge">{isPaused ? <Lock size={12}/> : <Unlock size={12}/>} {isPaused ? 'ENFORCED' : 'NORMAL'}</div>
-                      <div className="badge gasless"><Zap size={12}/> REACTIVE-PULSE</div>
+                      <div className="badge">{isPaused ? <Lock size={12}/> : <Unlock size={12}/>} {isPaused ? 'SHIELD ENFORCED' : 'AUTONOMOUS'}</div>
+                      <div className="badge gasless"><Zap size={12}/> NATIVE REACTIVITY</div>
                     </div>
                   </div>
                 </div>
                 <div className="terminal-container">
-                  <div className="terminal-header"><Terminal size={14}/><span>RECEPTOR STREAM</span></div>
+                  <div className="terminal-header"><Terminal size={14}/><span>NEURAL RECEPTOR STREAM</span></div>
                   <div className="terminal-content">
-                    {logs.map(l => <div key={l.id} className={`log-entry ${l.type}`}><span className="log-time">{l.time}</span> » {l.msg}</div>)}
+                    {logs.length === 0 ? (
+                      <div className="log-placeholder">WAITING FOR NEURAL SIGNALS...</div>
+                    ) : (
+                      logs.map(l => <div key={l.id} className={`log-entry ${l.type}`}><span className="log-time">{l.time}</span> » {l.msg}</div>)
+                    )}
                     <div className="terminal-cursor" />
                   </div>
                 </div>
               </section>
               <section className="dashboard-column">
                 <div className="action-card">
-                  <h3>TRANSFERS <span className="helper-text">(Simulate your interaction)</span></h3>
+                  <h3>VAULT TRANSFERS <span style={{ opacity: 0.5, fontSize: '0.66rem', marginLeft: '10px' }}>// THRESHOLD: {formatEther(threshold || 0n)} STT</span></h3>
                   <div className="input-group">
                     <input type="number" placeholder="0.0 STT" value={amount} onChange={(e) => setAmount(e.target.value)} />
                     <div className="button-row">
@@ -170,11 +184,11 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                <div className="action-card override-section">
-                  <h3 className="danger-text"><AlertTriangle size={14}/> OVERRIDE PROTOCOLS</h3>
+                <div className="action-card override-box">
+                  <h3 className="danger-text"><AlertTriangle size={14}/> SYSTEM OVERRIDES</h3>
                   <div className="button-grid">
                     <button className="btn-outline" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'resetVault' })}>RESTORE SYSTEM</button>
-                    <button className="btn-danger" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' })}>EMERGENCY RESCUE</button>
+                    <button className="btn-danger" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' })}>PANIC RESCUE</button>
                   </div>
                 </div>
               </section>
@@ -183,22 +197,21 @@ export default function App() {
           {activeTab === 'POLICY' && (
             <motion.div key="pol" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="dashboard-content single-col">
               <div className="action-card">
-                <h2><Settings size={20} /> POLICY ENGINE</h2>
-                <p className="subtitle">Configure automated threat detection thresholds.</p>
+                <h2>NEURAL POLICY ENGINE</h2>
                 <div className="policy-grid">
                   <div className="policy-item">
-                    <label>Anomaly Limit</label>
-                    <p>Triggers security levels if network transfers exceed this amount.</p>
+                    <label>Anomaly Detection Sensitivity</label>
+                    <p>Assets will be restricted/rescued if a network transfer exceeds this value.</p>
                     <div className="input-with-button">
-                      <input type="number" placeholder="500 STT" value={newThreshold} onChange={(e) => setNewThreshold(e.target.value)} />
-                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'updateThreshold', args: [parseEther(newThreshold || '0')] })}>UPDATE</button>
+                      <input type="number" placeholder="STT Allowance" value={newThreshold} onChange={(e) => setNewThreshold(e.target.value)} />
+                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'updateThreshold', args: [parseEther(newThreshold || '0')] })}>APPLY POLICY</button>
                     </div>
                   </div>
                   <div className="policy-card-info">
                     <Brain size={30} color={defcon.color} />
                     <div>
-                      <h4>Active Strategy</h4>
-                      <p>Migration Target: <br/> <strong>{address}</strong></p>
+                      <h4>Safety Strategy</h4>
+                      <p>Auto-Rescue Target Wallet: <br/> <strong>{address || 'DISCONNECTED'}</strong></p>
                     </div>
                   </div>
                 </div>
@@ -208,22 +221,42 @@ export default function App() {
           {activeTab === 'NETWORK' && (
             <motion.div key="net" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="dashboard-content single-col">
               <div className="action-card">
-                <h2><Globe size={20} /> NODE SYNC</h2>
+                <h2>SOMNIA NETWORK NODE</h2>
                 <div className="node-stats">
                   <div className="node-item"><span>Status</span><strong>SYNCHRONIZED</strong></div>
-                  <div className="node-item"><span>Chain</span><strong>Somnia Shannon</strong></div>
-                  <div className="node-item"><span>Sync Latency</span><strong>0.4s</strong></div>
+                  <div className="node-item"><span>Chain ID</span><strong>50312</strong></div>
+                  <div className="node-item"><span>System Address</span><strong title="Somnia Reactivity Engine">0x841b...4223</strong></div>
                 </div>
-                <div className="network-map-placeholder">
-                  <div className="ping-ring" style={{borderColor: defcon.color}} />
-                  <p>Connected to Somnia Reactive Node // Native PUSH Protocol Active</p>
-                </div>
+                <div className="network-map-placeholder"><div className="ping-ring" style={{borderColor: defcon.color}} /><span>LISTENING TO SOMNIA SHANNON EVENT STREAM...</span></div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
-      <footer className="footer"><div className="footer-line" /><p>© 2026 SOMNIA FLUX // NATIVE ON-CHAIN PROTECTION</p></footer>
+
+      <footer className="footer">
+        <div className="footer-stats">
+          <div className="health-stat">
+            <span>NETWORK HEALTH</span>
+            <div className="health-meter">
+              <motion.div 
+                className="health-fill" 
+                animate={{ width: `${defcon.health}%` }} 
+                transition={{ type: 'spring', stiffness: 50 }}
+                style={{ background: defcon.color, boxShadow: `0 0 10px ${defcon.color}` }}
+              />
+            </div>
+            <span style={{ minWidth: '40px' }}>{defcon.health}%</span>
+          </div>
+          <div className="node-identity">
+            LAST ATTACKER: <span style={{ color: lastAttacker !== 'NONE DETECTED' ? '#ef4444' : '#fff' }}>{lastAttacker === 'NONE DETECTED' ? lastAttacker : `${lastAttacker.slice(0, 10)}...`}</span>
+          </div>
+          <div className="node-identity">
+            GAS SAVED: <span style={{ color: '#10b981' }}>{gasSaved} GWEI</span>
+          </div>
+        </div>
+        <p>© 2026 SOMNIA FLUX // NATIVE REACTIVITY active</p>
+      </footer>
     </div>
   );
 }
