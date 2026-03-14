@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useContractRead, useContractWrite, usePrepareContractWrite, useWaitForTransaction } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink } from 'lucide-react';
@@ -31,11 +31,11 @@ export default function App() {
   const [amount, setAmount] = useState('');
   const [logs, setLogs] = useState([]);
 
-  // Contract Reads
-  const { data: defconLevel, refetch: refetchDefcon } = useContractRead({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon', watch: true });
-  const { data: isPaused, refetch: refetchPaused } = useContractRead({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused', watch: true });
-  const { data: threshold } = useContractRead({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold' });
-  const { data: unlockTime } = useContractRead({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'unlockTime' });
+  // Contract Reads (v2 hook names)
+  const { data: defconLevel, refetch: refetchDefcon } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon' });
+  const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused' });
+  const { data: threshold } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold' });
+  const { data: unlockTime } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'unlockTime' });
 
   const defcon = DEFCON_CONFIG[defconLevel] || DEFCON_CONFIG[0];
 
@@ -44,27 +44,42 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isConnected) addLog(`Neural link established: ${address.slice(0, 6)}...${address.slice(-4)}`, 'success');
-  }, [isConnected]);
+    if (isConnected) addLog(`Neural link established: ${address?.slice(0, 6)}...${address?.slice(-4)}`, 'success');
+  }, [isConnected, address]);
 
-  // Contract Writes
-  const { write: deposit } = useContractWrite({
-    address: CONTRACT_ADDRESS,
-    abi: ABI,
-    functionName: 'deposit',
-    onSuccess: () => addLog('Deposit broadcast confirmed.', 'success'),
-    onError: (e) => addLog(`Deposit failed: ${e.message}`, 'error'),
-  });
+  // Contract Writes (v2 Hook patterns)
+  const { writeContract: executeWrite, data: hash } = useWriteContract();
 
-  const { write: withdraw } = useContractWrite({
-    address: CONTRACT_ADDRESS,
-    abi: ABI,
-    functionName: 'withdraw',
-    onSuccess: () => addLog('Withdrawal sequence initiated.', 'success'),
-  });
+  const handleDeposit = () => {
+    executeWrite({
+      address: CONTRACT_ADDRESS,
+      abi: ABI,
+      functionName: 'deposit',
+      value: parseEther(amount || '0')
+    }, {
+      onSuccess: () => addLog('Deposit sequence initiated...', 'info'),
+      onError: (e) => addLog(`Deposit failed: ${e.message.split('\n')[0]}`, 'error'),
+    });
+  };
 
-  const { write: resetVault } = useContractWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'resetVault' });
-  const { write: panicRescue } = useContractWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' });
+  const handleWithdraw = () => {
+    executeWrite({
+      address: CONTRACT_ADDRESS,
+      abi: ABI,
+      functionName: 'withdraw',
+      args: [parseEther(amount || '0')]
+    }, {
+      onSuccess: () => addLog('Withdrawal sequence initiated...', 'info'),
+    });
+  };
+
+  const handleReset = () => {
+    executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'resetVault' });
+  };
+
+  const handlePanic = () => {
+    executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' });
+  };
 
   return (
     <div className="app-container" style={{ '--accent': defcon.color }}>
@@ -111,7 +126,7 @@ export default function App() {
               <Shield className="shield-icon" size={64} color={defcon.color} />
             </div>
             <div className="status-info">
-              <h2 style={{ color: defcon.color }}>DEFCON {defconLevel + 1}: {defcon.label}</h2>
+              <h2 style={{ color: defcon.color }}>DEFCON {Number(defconLevel ?? 0) + 1}: {defcon.label}</h2>
               <p>{defcon.description}</p>
             </div>
             <div className="security-badges">
@@ -163,10 +178,10 @@ export default function App() {
                 onChange={(e) => setAmount(e.target.value)}
               />
               <div className="button-row">
-                <button onClick={() => deposit({ value: parseEther(amount || '0') })} className="btn-primary">
+                <button onClick={handleDeposit} className="btn-primary">
                   <ArrowDownCircle size={18} /> DEPOSIT
                 </button>
-                <button onClick={() => withdraw([parseEther(amount || '0')])} className="btn-secondary">
+                <button onClick={handleWithdraw} className="btn-secondary">
                   <ArrowUpCircle size={18} /> WITHDRAW
                 </button>
               </div>
@@ -178,14 +193,14 @@ export default function App() {
             <h3 className="warning-text"><AlertTriangle size={16} /> OVERRIDE PROTOCOLS</h3>
             <div className="button-grid">
               <button 
-                onClick={() => resetVault()} 
+                onClick={handleReset} 
                 className="btn-outline"
                 title="Reset Defcon level and re-enable withdrawals (24h cooldown)"
               >
                 <RefreshCw size={18} /> RESET SYSTEM
               </button>
               <button 
-                onClick={() => panicRescue()} 
+                onClick={handlePanic} 
                 className="btn-danger"
                 title="Immediate rescue of all funds to cold storage"
               >
