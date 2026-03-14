@@ -1,7 +1,8 @@
-import hre from "hardhat";
-// Hardhat injects ethers into hre in v3
-
-import { createPublicClient, http, parseEther, formatEther } from "viem";
+import { createPublicClient, createWalletClient, http, parseEther, formatEther, getContractAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import "dotenv/config";
+import fs from "fs";
+import path from "path";
 
 // Custom chain representation for Somnia Shannon Testnet
 const somniaShannonTestnet = {
@@ -20,44 +21,63 @@ const somniaShannonTestnet = {
 };
 
 async function main() {
-    // 1. Setup Deployer Wallet
-    const [deployer] = await hre.ethers.getSigners();
     console.log("==========================================");
-    console.log("Starting Reactive Firewall Deployment...");
-    console.log("Deploying from Neural Link:", deployer.address);
-    // User Address targeted for ownership: 0x7B2050a36ec38889C648157F12D9Dc72709991a2
+    console.log("Starting Reactive Firewall Deployment (via Viem)...");
     console.log("==========================================");
+
+    const PRIVATE_KEY = process.env.PRIVATE_KEY;
+    if (!PRIVATE_KEY) {
+        console.error("❌ PRIVATE_KEY missing in .env");
+        process.exit(1);
+    }
+
+    const account = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`);
+    console.log("Deploying from Neural Link:", account.address);
 
     const publicClient = createPublicClient({
         chain: somniaShannonTestnet,
         transport: http()
     });
 
-    const balance = await publicClient.getBalance({ address: deployer.address });
-    const balanceInSTT = parseFloat(formatEther(balance));
+    const walletClient = createWalletClient({
+        account,
+        chain: somniaShannonTestnet,
+        transport: http()
+    });
+
+    const balance = await publicClient.getBalance({ address: account.address });
+    const balanceInSTT = formatEther(balance);
     console.log(`Deployer Fuel: ${balanceInSTT} STT`);
 
-    // 2. Deploy the FluxVault contract with initial state
-    const initialThreshold = parseEther("500"); // Start with a default threat threshold of 500 STT
-    
-    // We will use the deployer's address as the "Cold Storage Wallet" for the Hackathon demo
-    const coldStorageWallet = deployer.address; 
-    
-    const FluxVault = await hre.ethers.getContractFactory("FluxVault");
-    
+    // 1. Read Artifact
+    const artifactPath = path.resolve("./artifacts/contracts/FluxVault.sol/FluxVault.json");
+    if (!fs.existsSync(artifactPath)) {
+        console.error("❌ FluxVault artifact not found. Run 'npx hardhat compile' first.");
+        process.exit(1);
+    }
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+
+    // 2. Deploy Params
+    const initialThreshold = parseEther("500");
+    const coldStorageWallet = account.address; // Default to self for demo
+
     console.log("Deploying FluxVault to Somnia Shannon Testnet...");
-    const fluxVault = await FluxVault.deploy(initialThreshold, coldStorageWallet);
-    await fluxVault.waitForDeployment();
-    const vaultAddress = await fluxVault.getAddress();
-    
+
+    const hash = await walletClient.deployContract({
+        abi: artifact.abi,
+        bytecode: artifact.bytecode,
+        args: [initialThreshold, coldStorageWallet],
+    });
+
+    console.log("⏳ Transaction broadcast! Hash:", hash);
+    console.log("Waiting for confirmation...");
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    const vaultAddress = receipt.contractAddress;
+
     console.log("✅ FluxVault anchored at:", vaultAddress);
     console.log("\nDeployment Phase Complete!");
     console.log("Next Step: Run the subscribe.js script to activate Reactivity.");
 }
 
-main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error("Deployment crashed:", error);
-        process.exit(1);
-    });
+main().catch(console.error);

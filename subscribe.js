@@ -1,6 +1,6 @@
-import hre from "hardhat";
-const { ethers } = hre;
 import { createPublicClient, http, parseEther, formatEther } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import "dotenv/config";
 
 // Custom chain representation for Somnia Shannon Testnet
 const somniaShannonTestnet = {
@@ -19,24 +19,30 @@ const somniaShannonTestnet = {
 };
 
 async function main() {
-    // 1. Setup Deployer Wallet
-    const [deployer] = await ethers.getSigners();
     console.log("==========================================");
     console.log("Starting Reactive Subscription Registration...");
-    console.log("Using Neural Link:", deployer.address);
     console.log("==========================================");
+
+    const PRIVATE_KEY = process.env.PRIVATE_KEY;
+    if (!PRIVATE_KEY) {
+        console.error("❌ PRIVATE_KEY missing in .env");
+        process.exit(1);
+    }
+
+    const account = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`);
+    console.log("Using Neural Link:", account.address);
 
     const publicClient = createPublicClient({
         chain: somniaShannonTestnet,
         transport: http()
     });
 
-    const balance = await publicClient.getBalance({ address: deployer.address });
-    const balanceInSTT = parseFloat(formatEther(balance));
+    const balance = await publicClient.getBalance({ address: account.address });
+    const balanceInSTT = formatEther(balance);
     console.log(`Deployer Fuel: ${balanceInSTT} STT`);
 
     // Safety check: Requires 32 STT to register a subscription on the Reactivity Network
-    if (balanceInSTT < 32.1) {
+    if (parseFloat(balanceInSTT) < 32.1) {
         console.error("❌ INSUFFICIENT NATIVE TOKEN: You require > 32 STT to register Reactive subscriptions (32 STT fee + gas).");
         process.exit(1);
     }
@@ -60,7 +66,7 @@ async function main() {
      
      const streamClient = new StreamClient({ 
           rpcUrl: "https://dream-rpc.somnia.network", 
-          privateKey: process.env.PRIVATE_KEY // Ensure you never commit this!
+          privateKey: PRIVATE_KEY
      });
      
      const subscriptionRequest = {
@@ -73,7 +79,7 @@ async function main() {
           // Trigger: Set the destination to newly deployed FluxVault's onEvent handler
           destination: {
               address: vaultAddress,
-              functionSelector: "0x8848a529" // Signature for 'onEvent(bytes32,bytes)' usually used by Reactivity Engine
+              functionSelector: "0x8848a529" // Signature for 'onEvent(bytes32,bytes)'
           },
           fee: parseEther("32") // The on-chain Reactivity cost
      };
@@ -86,9 +92,4 @@ async function main() {
     console.log("\nReactivity Engine Configuration fully complete! (Pending uncomment)");
 }
 
-main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error("Subscription crashed:", error);
-        process.exit(1);
-    });
+main().catch(console.error);

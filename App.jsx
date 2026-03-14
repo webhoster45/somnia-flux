@@ -17,7 +17,7 @@ const FLUX_VAULT_ABI = [
 ];
 
 // ⚠️ Hackathon Replace: Insert your freshly deployed FluxVault address here
-const CONTRACT_ADDRESS = "0xYOUR_DEPLOYED_CONTRACT_ADDRESS_HERE";
+const CONTRACT_ADDRESS = "0x1C6f83CFdAa5495B21bAE8E3982bdC373029EeC0";
 
 export default function App() {
   const { address, isConnected } = useAccount();
