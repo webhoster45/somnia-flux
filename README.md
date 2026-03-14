@@ -45,10 +45,8 @@ We follow the standard military DEFCON system for clarity:
 
 ### 1. Activating the Receptor
 Register your vault with the Somnia Engine to begin monitoring.
-```bash
-# Handled automatically via subscribe.js
-node subscribe.js 
-```
+- **Get Fuel**: Visit the [Somnia Shannon Faucet](https://faucet.somnia.network/) to get STT tokens.
+- **Subscribe**: Run `node subscribe.js` (Requires 32.1 STT).
 
 ### 2. The Attack Simulation
 Use the **SIMULATE** tab in the dashboard to trigger an anomaly.

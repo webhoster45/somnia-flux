@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWatchContractEvent, useConnect, useDisconnect, useSendTransaction, useBlockNumber } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWatchContractEvent, useConnect, useDisconnect, useSendTransaction, useBlockNumber, useBalance, useSwitchChain } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power, Skull, Wifi } from 'lucide-react';
+import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power, Skull, Wifi, Coins } from 'lucide-react';
 import './App.css';
 
 const CONTRACT_ADDRESS = '0x2f1ca27ebca50119ddd20920ad2ddb9d551c8b5e';
 const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
-const SHOW_SIMULATOR = false; // Set to true for live judge demonstrations
+const SHOW_SIMULATOR = true; // Enabled for the user's demonstration
 
 const ABI = [
   {"inputs":[],"name":"currentDefcon","outputs":[{"internalType":"enum FluxVault.DefconLevel","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
@@ -59,11 +59,13 @@ const NeuralMap = ({ defconColor }) => {
 };
 
 export default function App() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { sendTransaction } = useSendTransaction();
   const { data: blockNumber } = useBlockNumber({ watch: true });
+  const { data: balanceData } = useBalance({ address });
+  const { switchChain } = useSwitchChain();
 
   const [amount, setAmount] = useState('');
   const [simAmount, setSimAmount] = useState('0.1');
@@ -97,8 +99,36 @@ export default function App() {
 
   useEffect(() => { if (isConnected) addLog(`Neural link established. Watching Somnia stream...`, 'success'); }, [isConnected, address]);
 
+  const handleFixNetwork = async () => {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: '0xc488', // 50312 hex
+          chainName: 'Somnia Shannon Testnet',
+          nativeCurrency: { name: 'STT', symbol: 'STT', decimals: 18 },
+          rpcUrls: ['https://dream-rpc.somnia.network'],
+          blockExplorerUrls: ['https://dream-explorer.somnia.network/']
+        }]
+      });
+      addLog("Network configuration updated to STT symbol.", "success");
+    } catch (e) {
+      addLog("Network sync failed. Please update MetaMask manually.", "error");
+    }
+  };
+
   const handleSimulateAttack = () => {
     if (!isConnected) return addLog("No wallet detected for simulation.", "error");
+    const balance = balanceData ? parseFloat(formatEther(balanceData.value)) : 0;
+    const requested = parseFloat(simAmount || '0');
+    
+    if (requested >= balance) {
+      const safeAmount = (balance * 0.8).toFixed(4);
+      setSimAmount(safeAmount);
+      addLog(`Insufficient Fuel. Auto-scaling attack to safe limit: ${safeAmount} STT`, 'warning');
+      return;
+    }
+
     addLog(`☠️ INITIATING SIMULATED NETWORK ATTACK OF ${simAmount} STT...`, "error");
     sendTransaction({ to: BURN_ADDRESS, value: parseEther(simAmount || '0.1') }, {
       onSuccess: () => addLog("Simulated Anomaly broadcasted! Waiting for Reactive Engine...", "success"),
@@ -112,6 +142,8 @@ export default function App() {
     if (num < 100) return { label: 'ASSET DRAIN', color: '#f97316' };
     return { label: 'NETWORK ANOMALY', color: '#ef4444' };
   };
+
+  const isNetworkWrong = isConnected && chainId !== 50312;
 
   return (
     <div className="app-container" style={{ '--accent': defcon.color }}>
@@ -137,6 +169,11 @@ export default function App() {
           ))}
         </nav>
         <div className="header-stats">
+          {isNetworkWrong && (
+            <button className="badge pulse-badge" style={{color: '#ef4444', borderColor: '#ef4444', marginRight: '1rem', cursor: 'pointer'}} onClick={() => switchChain({ chainId: 50312 })}>
+               SWITCH TO SOMNIA
+            </button>
+          )}
           <button className={`wallet-btn ${isConnected ? 'active' : ''}`} onClick={() => isConnected ? disconnect() : connect({ connector: connectors[0] })}>
             {isConnected ? <Power size={14} /> : <Zap size={14} />}
             <span>{isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'CONNECT WALLET'}</span>
@@ -253,19 +290,30 @@ export default function App() {
                   <AlertTriangle size={24} />
                   <div>
                     <strong>REAL-TIME ATTACK SIMULATION</strong>
-                    <p>Broadcast a transfer to a burn address to trigger the firewall. For a successful demonstration, ensure this amount is slightly higher than your <strong>Policy Threshold</strong>.</p>
+                    <p>Broadcast a transfer to a burn address to trigger the firewall. Current wallet balance: <strong>{balanceData ? formatEther(balanceData.value) : '0'} STT</strong></p>
                   </div>
                 </div>
-                <div className="sim-input-group">
-                  <label>Exploit Amount (STT) <span style={{opacity: 0.5}}>// META-SYMBOL: ETH</span></label>
-                  <input type="number" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} placeholder="0.1" />
+                
+                <div className="policy-grid" style={{marginBottom: '1rem'}}>
+                  <div className="sim-input-group">
+                    <label>Exploit Amount (STT)</label>
+                    <input type="number" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} placeholder="0.1" />
+                  </div>
+                  <div className="policy-item">
+                    <button className="btn-outline" style={{height: '100%', marginBottom: '10px'}} onClick={handleFixNetwork}>
+                      <Coins size={14} style={{marginRight: '8px'}}/> FIX WALLET SYMBOL
+                    </button>
+                  </div>
                 </div>
+
                 <button className="sim-btn" onClick={handleSimulateAttack} disabled={!isConnected} style={{borderColor: getThreatIntensity(simAmount).color, color: getThreatIntensity(simAmount).color}}>
                   TRIGGER {getThreatIntensity(simAmount).label} ({simAmount} STT)
                 </button>
                 <div className="sim-footer">
-                  <p>// Note: MetaMask identifies STT as "ETH" by default on new testnets. This is cosmetic.</p>
-                  <p>// Target Reactor: <code>{CONTRACT_ADDRESS}</code></p>
+                  <p>// Click 'FIX WALLET SYMBOL' to update your MetaMask to show STT instead of ETH.</p>
+                  {parseFloat(balanceData?.formatted || '0') < 0.02 && (
+                    <p style={{color: '#ef4444'}}>Warning: Low fuel. <a href="https://faucet.somnia.network/" target="_blank" rel="noreferrer" style={{color: '#fff', textDecoration: 'underline'}}>Visit Faucet</a></p>
+                  )}
                 </div>
               </div>
             </motion.div>
