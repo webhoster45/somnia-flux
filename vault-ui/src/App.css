@@ -131,12 +131,24 @@ h1, h2, h3, h4 {
 .dashboard { flex: 1; position: relative; overflow: hidden; }
 .dashboard-content {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
 }
 
-.dashboard-column { display: flex; flex-direction: column; gap: 1.5rem; }
+.dashboard-content.single-col {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: none;
+  max-width: 900px;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.dashboard-column { display: flex; flex-direction: column; gap: 1.5rem; height: 100%; }
 /* Wallet Button & Connection */
 .wallet-btn {
   background: rgba(255, 255, 255, 0.05);
@@ -296,21 +308,21 @@ h1, h2, h3, h4 {
 .policy-view h2, .network-view h2 { margin-top: 0; color: #fff; }
 .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; }
 
-.policy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-.policy-item label { display: block; font-family: 'Orbitron', sans-serif; font-size: 0.8rem; margin-bottom: 0.5rem; }
-.policy-item p { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem; }
-
-.input-with-button { display: flex; gap: 0.5rem; }
-.input-with-button input { flex: 1; }
+.policy-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; }
+.policy-item label { display: block; font-family: 'Michroma', sans-serif; font-size: 0.65rem; margin-bottom: 0.75rem; color: var(--accent); opacity: 0.8; }
+.policy-item p { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.4; }
 
 .policy-card-info {
-  background: rgba(0,0,0,0.5);
-  padding: 1.5rem;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1.25rem;
+  border: 1px solid var(--border);
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: center;
 }
+
+.policy-card-info h4 { margin: 0 0 0.25rem 0; font-size: 0.65rem; color: var(--text-secondary); }
+.policy-card-info strong { font-size: 0.65rem; color: #fff; word-break: break-all; font-family: monospace; }
 
 .node-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
 .node-item { display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
@@ -450,6 +462,13 @@ button {
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.centered-card {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  align-self: center;
+}
+
 .node-identity {
   color: var(--text-secondary);
   font-size: 0.6rem;
@@ -460,4 +479,158 @@ button {
   color: #fff;
   margin-left: 0.5rem;
   font-family: 'Michroma', sans-serif;
+}
+
+/* Judge Simulator UI */
+.simulator-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.simulator-card {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 2.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.simulator-card h2 { color: var(--danger); margin-top: 0; }
+
+.sim-warning {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 1rem;
+  border-left: 3px solid var(--danger);
+  font-size: 0.75rem;
+  color: #ff8080;
+  margin-bottom: 1.5rem;
+}
+
+.sim-btn {
+  width: 100%;
+  padding: 1.2rem;
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-family: 'Michroma', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: 0.3s;
+  letter-spacing: 2px;
+  margin-top: 1.5rem;
+}
+
+.sim-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sim-input-group label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  font-family: 'Michroma', sans-serif;
+}
+
+.sim-btn:hover:not(:disabled) {
+  background: var(--danger);
+  color: #000;
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+}
+
+.sim-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sim-footer {
+  margin-top: 2rem;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.single-col {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.policy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: stretch;
+}
+
+.policy-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* De-cluttering Footer */
+.footer-stats { gap: 2rem; flex: 1; display: flex; justify-content: center; }
+.footer p { min-width: 250px; text-align: left; }
+.node-identity { font-size: 0.6rem; color: rgba(255,255,255,0.4); border-left: 1px solid var(--border); padding-left: 1.5rem; }
+.node-identity span { color: #fff; font-family: monospace; opacity: 1; }
+
+.ping-ring {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  animation: ping 3s infinite;
+  opacity: 0;
+}
+
+@keyframes ping {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.pulse-badge {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.55rem;
+  font-family: 'Michroma', sans-serif;
+  letter-spacing: 1px;
+}
+
+.node-item strong {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 1px;
+}
+
+/* Simulator Intensity */
+.sim-input-group label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  font-family: 'Michroma', sans-serif;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.sim-input-group input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  color: #fff;
+  font-family: monospace;
+  font-size: 1rem;
+  outline: none;
+  transition: 0.3s;
+  width: 100%;
+}
+
+.sim-input-group input:focus {
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, 0.05);
 }

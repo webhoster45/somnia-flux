@@ -1,4 +1,4 @@
-import { createPublicClient, http, parseEther, formatEther } from "viem";
+import { createPublicClient, createWalletClient, http, parseEther, formatEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import "dotenv/config";
 
@@ -18,78 +18,91 @@ const somniaShannonTestnet = {
     },
 };
 
+// Somnia Reactivity Registry Contract (Shannon Testnet)
+const REGISTRY_ADDRESS = "0x94f1E5B4Af180907B5940082725f0132b85CC8c4";
+const REGISTRY_ABI = [
+    {
+        "inputs": [
+            {
+                "components": [
+                    { "internalType": "uint64", "name": "chainId", "type": "uint64" },
+                    { "internalType": "address", "name": "sourceAddress", "type": "address" },
+                    { "internalType": "bytes32", "name": "eventSignature", "type": "bytes32" },
+                    { "internalType": "address", "name": "destinationAddress", "type": "address" },
+                    { "internalType": "bytes4", "name": "functionSelector", "type": "bytes4" }
+                ],
+                "internalType": "struct SubscriptionRequest",
+                "name": "request",
+                "type": "tuple"
+            }
+        ],
+        "name": "register",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    }
+];
+
 async function main() {
     console.log("==========================================");
-    console.log("Starting Reactive Subscription Registration...");
+    console.log("🚀 ACTIVATING NEURAL RECEPTOR (SUBSCRIPTION)");
     console.log("==========================================");
 
     const PRIVATE_KEY = process.env.PRIVATE_KEY;
-    if (!PRIVATE_KEY) {
-        console.error("❌ PRIVATE_KEY missing in .env");
+    const VAULT_ADDRESS = process.env.VAULT_ADDRESS;
+
+    if (!PRIVATE_KEY || !VAULT_ADDRESS) {
+        console.error("❌ ERROR: PRIVATE_KEY or VAULT_ADDRESS missing in .env");
         process.exit(1);
     }
 
     const account = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`);
-    console.log("Using Neural Link:", account.address);
-
-    const publicClient = createPublicClient({
-        chain: somniaShannonTestnet,
-        transport: http()
-    });
+    const publicClient = createPublicClient({ chain: somniaShannonTestnet, transport: http() });
+    const walletClient = createWalletClient({ account, chain: somniaShannonTestnet, transport: http() });
 
     const balance = await publicClient.getBalance({ address: account.address });
-    const balanceInSTT = formatEther(balance);
-    console.log(`Deployer Fuel: ${balanceInSTT} STT`);
+    console.log(`Wallet Balance: ${formatEther(balance)} STT`);
 
-    // Safety check: Requires 32 STT to register a subscription on the Reactivity Network
-    if (parseFloat(balanceInSTT) < 32.1) {
-        console.error("❌ INSUFFICIENT NATIVE TOKEN: You require > 32 STT to register Reactive subscriptions (32 STT fee + gas).");
+    if (balance < parseEther("32.1")) {
+        console.error("❌ INSUFFICIENT FUNDS: Reactivity subscription requires exactly 32 STT fee + gas.");
         process.exit(1);
     }
 
-    // --- MUST UPDATE THIS WITH THE DEPLOYED VAULT ADDRESS ---
-    const vaultAddress = process.env.VAULT_ADDRESS || "0xYOUR_DEPLOYED_CONTRACT_ADDRESS_HERE";
-    if (vaultAddress === "0xYOUR_DEPLOYED_CONTRACT_ADDRESS_HERE") {
-        console.error("❌ VAULT ADDRESS MISSING: Please set VAULT_ADDRESS in your .env file or update subscribe.js.");
-        process.exit(1);
+    console.log(`\nNeural Anchor: ${VAULT_ADDRESS}`);
+    console.log("Subscription Fee: 32 STT (Handled Automatically)");
+
+    const request = {
+        chainId: BigInt(50312),
+        sourceAddress: "0x0000000000000000000000000000000000000000", // Listen to network-wide native transfers
+        eventSignature: "0x0000000000000000000000000000000000000000000000000000000000000000", 
+        destinationAddress: VAULT_ADDRESS,
+        functionSelector: "0x8848a529" // onEvent(bytes32,bytes)
+    };
+
+    console.log("\nBroadcasting subscription to Somnia Registry...");
+    
+    try {
+        const { request: callRequest } = await publicClient.simulateContract({
+            account,
+            address: REGISTRY_ADDRESS,
+            abi: REGISTRY_ABI,
+            functionName: "register",
+            args: [request],
+            value: parseEther("32")
+        });
+
+        const hash = await walletClient.writeContract(callRequest);
+        console.log(`\n✅ SUCCESS! Neural Receptor Active.`);
+        console.log(`Transaction Hash: ${hash}`);
+        console.log("\n------------------------------------------");
+        console.log("YOUR VAULT IS NOW REACTIVE.");
+        console.log("Run 'node simulate_attack.js' to test the firewall instantly.");
+        console.log("------------------------------------------");
+
+    } catch (error) {
+        console.error("\n❌ SUBSCRIPTION FAILED:", error.message);
+        console.log("\nNOTE: If the Registry address is outdated, ensure you use the latest Somnia SDK.");
     }
-    
-    console.log(`Targeting FluxVault anchored at: ${vaultAddress}`);
-
-    // 2. Register a Reactive Subscription
-    console.log("\nInitiating Reactive Subscription via @somnia-chain/streams...");
-    
-    /* 
-     // HACKATHON LIVE CODE - Un-comment this block when you add your `.env` PRIVATE_KEY //
-     
-     import { StreamClient } from "@somnia-chain/streams";
-     
-     const streamClient = new StreamClient({ 
-          rpcUrl: "https://dream-rpc.somnia.network", 
-          privateKey: PRIVATE_KEY
-     });
-     
-     const subscriptionRequest = {
-          // Configuration: Listen for Transfer events on the STT native network
-          source: {
-              chainId: 50312,
-              eventType: "Transfer",
-              // Target is left to match network wide native transfers acting as an anomaly detector
-          },
-          // Trigger: Set the destination to newly deployed FluxVault's onEvent handler
-          destination: {
-              address: vaultAddress,
-              functionSelector: "0x8848a529" // Signature for 'onEvent(bytes32,bytes)'
-          },
-          fee: parseEther("32") // The on-chain Reactivity cost
-     };
-     
-     console.log("Registering Stream...");
-     const tx = await streamClient.registerSubscription(subscriptionRequest);
-     console.log("✅ Reactive Subscription Active! Shield is ONLINE. Tx:", tx.hash);
-     */
-
-    console.log("\nReactivity Engine Configuration fully complete! (Pending uncomment)");
 }
 
 main().catch(console.error);

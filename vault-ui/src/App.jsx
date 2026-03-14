@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWatchContractEvent, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWatchContractEvent, useConnect, useDisconnect, useSendTransaction, useBlockNumber } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power } from 'lucide-react';
+import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power, Skull, Wifi } from 'lucide-react';
 import './App.css';
 
 const CONTRACT_ADDRESS = '0x2f1ca27ebca50119ddd20920ad2ddb9d551c8b5e';
+const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+const SHOW_SIMULATOR = false; // Set to true for live judge demonstrations
 
 const ABI = [
   {"inputs":[],"name":"currentDefcon","outputs":[{"internalType":"enum FluxVault.DefconLevel","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
@@ -60,8 +62,11 @@ export default function App() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { sendTransaction } = useSendTransaction();
+  const { data: blockNumber } = useBlockNumber({ watch: true });
 
   const [amount, setAmount] = useState('');
+  const [simAmount, setSimAmount] = useState('0.1');
   const [newThreshold, setNewThreshold] = useState('');
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab ] = useState('DASHBOARD');
@@ -73,7 +78,6 @@ export default function App() {
   const { data: defconLevel, refetch: refetchDefcon } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon' });
   const { data: isPaused } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused' });
   const { data: threshold } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold' });
-  const { data: unlockTime } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'unlockTime' });
 
   const defcon = DEFCON_CONFIG[defconLevel] || DEFCON_CONFIG[0];
   const addLog = (msg, type = 'info') => setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 10));
@@ -91,17 +95,22 @@ export default function App() {
     },
   });
 
-  useEffect(() => { 
-    if (isConnected) addLog(`Neural link established with ${address?.slice(0, 8)}...`, 'success');
-  }, [isConnected, address]);
+  useEffect(() => { if (isConnected) addLog(`Neural link established. Watching Somnia stream...`, 'success'); }, [isConnected, address]);
 
-  const handleWalletAction = () => {
-    if (isConnected) {
-      disconnect();
-      addLog("Neural link severed.", "error");
-    } else {
-      connect({ connector: connectors[0] });
-    }
+  const handleSimulateAttack = () => {
+    if (!isConnected) return addLog("No wallet detected for simulation.", "error");
+    addLog(`☠️ INITIATING SIMULATED NETWORK ATTACK OF ${simAmount} STT...`, "error");
+    sendTransaction({ to: BURN_ADDRESS, value: parseEther(simAmount || '0.1') }, {
+      onSuccess: () => addLog("Simulated Anomaly broadcasted! Waiting for Reactive Engine...", "success"),
+      onError: (err) => addLog(`Simulation failed: ${err.message.slice(0, 40)}...`, "error")
+    });
+  };
+
+  const getThreatIntensity = (val) => {
+    const num = parseFloat(val);
+    if (num < 1) return { label: 'FOCUSED STRIKE', color: '#fbbf24' };
+    if (num < 100) return { label: 'ASSET DRAIN', color: '#f97316' };
+    return { label: 'NETWORK ANOMALY', color: '#ef4444' };
   };
 
   return (
@@ -119,18 +128,16 @@ export default function App() {
           {[
             { id: 'DASHBOARD', icon: <Brain size={14}/>, label: 'VAULT' },
             { id: 'POLICY', icon: <Settings size={14}/>, label: 'POLICY' },
-            { id: 'NETWORK', icon: <Globe size={14}/>, label: 'NODE' }
+            { id: 'NETWORK', icon: <Globe size={14}/>, label: 'NODE' },
+            ...(SHOW_SIMULATOR ? [{ id: 'SIMULATOR', icon: <Skull size={14}/>, label: 'SIMULATE' }] : [])
           ].map(t => (
-            <button key={t.id} className={`nav-btn ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
+            <button key={t.id} className={`nav-btn ${activeTab === t.id ? 'active' : ''} ${t.id === 'SIMULATOR' ? 'sim-tab-btn' : ''}`} onClick={() => setActiveTab(t.id)}>
               {t.icon} {t.label}
             </button>
           ))}
         </nav>
         <div className="header-stats">
-          <button 
-            className={`wallet-btn ${isConnected ? 'active' : ''}`} 
-            onClick={handleWalletAction}
-          >
+          <button className={`wallet-btn ${isConnected ? 'active' : ''}`} onClick={() => isConnected ? disconnect() : connect({ connector: connectors[0] })}>
             {isConnected ? <Power size={14} /> : <Zap size={14} />}
             <span>{isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'CONNECT WALLET'}</span>
           </button>
@@ -140,9 +147,9 @@ export default function App() {
       <main className="dashboard">
         <AnimatePresence mode="wait">
           {activeTab === 'DASHBOARD' && (
-            <motion.div key="db" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="dashboard-content">
+            <motion.div key="db" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="dashboard-content">
               <section className="dashboard-column">
-                <div className="shield-card" style={{ borderColor: defcon.color, boxShadow: defcon.glow }}>
+                <div className="shield-card" style={{ borderColor: defcon.color }}>
                   <div className="defcon-ring">
                     <Shield className="shield-icon" size={70} color={defcon.color} />
                     <motion.div className="orbit" animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}>
@@ -164,18 +171,14 @@ export default function App() {
                 <div className="terminal-container">
                   <div className="terminal-header"><Terminal size={14}/><span>NEURAL RECEPTOR STREAM</span></div>
                   <div className="terminal-content">
-                    {logs.length === 0 ? (
-                      <div className="log-placeholder">WAITING FOR NEURAL SIGNALS...</div>
-                    ) : (
-                      logs.map(l => <div key={l.id} className={`log-entry ${l.type}`}><span className="log-time">{l.time}</span> » {l.msg}</div>)
-                    )}
+                    {logs.map(l => <div key={l.id} className={`log-entry ${l.type}`}><span className="log-time">{l.time}</span> » {l.msg}</div>)}
                     <div className="terminal-cursor" />
                   </div>
                 </div>
               </section>
               <section className="dashboard-column">
                 <div className="action-card">
-                  <h3>VAULT TRANSFERS <span style={{ opacity: 0.5, fontSize: '0.66rem', marginLeft: '10px' }}>// THRESHOLD: {formatEther(threshold || 0n)} STT</span></h3>
+                  <h3>VAULT TRANSFERS <span style={{ opacity: 0.5, fontSize: '0.66rem', marginLeft: '10px' }}>// LIMIT: {formatEther(threshold || 0n)} STT</span></h3>
                   <div className="input-group">
                     <input type="number" placeholder="0.0 STT" value={amount} onChange={(e) => setAmount(e.target.value)} />
                     <div className="button-row">
@@ -196,22 +199,22 @@ export default function App() {
           )}
           {activeTab === 'POLICY' && (
             <motion.div key="pol" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="dashboard-content single-col">
-              <div className="action-card">
+              <div className="action-card centered-card">
                 <h2>NEURAL POLICY ENGINE</h2>
                 <div className="policy-grid">
                   <div className="policy-item">
                     <label>Anomaly Detection Sensitivity</label>
                     <p>Assets will be restricted/rescued if a network transfer exceeds this value.</p>
-                    <div className="input-with-button">
-                      <input type="number" placeholder="STT Allowance" value={newThreshold} onChange={(e) => setNewThreshold(e.target.value)} />
-                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'updateThreshold', args: [parseEther(newThreshold || '0')] })}>APPLY POLICY</button>
+                    <div className="input-with-button" style={{display:'flex', gap:'0.5rem'}}>
+                      <input type="number" placeholder="STT" value={newThreshold} onChange={(e) => setNewThreshold(e.target.value)} style={{flex:1}} />
+                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'updateThreshold', args: [parseEther(newThreshold || '0')] })}>UPDATE</button>
                     </div>
                   </div>
                   <div className="policy-card-info">
-                    <Brain size={30} color={defcon.color} />
-                    <div>
-                      <h4>Safety Strategy</h4>
-                      <p>Auto-Rescue Target Wallet: <br/> <strong>{address || 'DISCONNECTED'}</strong></p>
+                    <Brain size={24} color={defcon.color} />
+                    <div className="info-text">
+                      <h4>Rescue Strategy</h4>
+                      <strong>{address || 'DISCONNECTED'}</strong>
                     </div>
                   </div>
                 </div>
@@ -220,14 +223,50 @@ export default function App() {
           )}
           {activeTab === 'NETWORK' && (
             <motion.div key="net" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="dashboard-content single-col">
-              <div className="action-card">
-                <h2>SOMNIA NETWORK NODE</h2>
+              <div className="action-card centered-card">
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                  <h2>NETWORK NODE CLUSTER</h2>
+                  <div className="badge pulse-badge" style={{color: defcon.color, borderColor: defcon.color}}><Activity size={12}/> LIVE STREAM</div>
+                </div>
                 <div className="node-stats">
                   <div className="node-item"><span>Status</span><strong>SYNCHRONIZED</strong></div>
-                  <div className="node-item"><span>Chain ID</span><strong>50312</strong></div>
-                  <div className="node-item"><span>System Address</span><strong title="Somnia Reactivity Engine">0x841b...4223</strong></div>
+                  <div className="node-item"><span>Sync Mode</span><strong>PUSH-BASED</strong></div>
+                  <div className="node-item"><span>Current Block</span><strong style={{fontFamily: 'monospace'}}>{blockNumber?.toString() || 'FETCHING...'}</strong></div>
+                  <div className="node-item"><span>Neural Latency</span><strong>0.01 MS</strong></div>
                 </div>
-                <div className="network-map-placeholder"><div className="ping-ring" style={{borderColor: defcon.color}} /><span>LISTENING TO SOMNIA SHANNON EVENT STREAM...</span></div>
+                <div className="network-map-placeholder">
+                  <div className="ping-ring" style={{borderColor: defcon.color}} />
+                  <div className="ping-ring" style={{borderColor: defcon.color, animationDelay: '1s'}} />
+                  <span>LISTENING TO SOMNIA SHANNON STREAM</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+          {activeTab === 'SIMULATOR' && SHOW_SIMULATOR && (
+            <motion.div key="sim" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="dashboard-content single-col">
+              <div className="simulator-card centered-card">
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                  <h2>JUDGE SIMULATOR</h2>
+                  <div className="badge" style={{color: getThreatIntensity(simAmount).color, borderColor: getThreatIntensity(simAmount).color}}>{getThreatIntensity(simAmount).label}</div>
+                </div>
+                <div className="sim-warning">
+                  <AlertTriangle size={24} />
+                  <div>
+                    <strong>REAL-TIME ATTACK SIMULATION</strong>
+                    <p>Broadcast a transfer to a burn address to trigger the firewall. For a successful demonstration, ensure this amount is slightly higher than your <strong>Policy Threshold</strong>.</p>
+                  </div>
+                </div>
+                <div className="sim-input-group">
+                  <label>Exploit Amount (STT) <span style={{opacity: 0.5}}>// META-SYMBOL: ETH</span></label>
+                  <input type="number" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} placeholder="0.1" />
+                </div>
+                <button className="sim-btn" onClick={handleSimulateAttack} disabled={!isConnected} style={{borderColor: getThreatIntensity(simAmount).color, color: getThreatIntensity(simAmount).color}}>
+                  TRIGGER {getThreatIntensity(simAmount).label} ({simAmount} STT)
+                </button>
+                <div className="sim-footer">
+                  <p>// Note: MetaMask identifies STT as "ETH" by default on new testnets. This is cosmetic.</p>
+                  <p>// Target Reactor: <code>{CONTRACT_ADDRESS}</code></p>
+                </div>
               </div>
             </motion.div>
           )}
@@ -237,25 +276,14 @@ export default function App() {
       <footer className="footer">
         <div className="footer-stats">
           <div className="health-stat">
-            <span>NETWORK HEALTH</span>
-            <div className="health-meter">
-              <motion.div 
-                className="health-fill" 
-                animate={{ width: `${defcon.health}%` }} 
-                transition={{ type: 'spring', stiffness: 50 }}
-                style={{ background: defcon.color, boxShadow: `0 0 10px ${defcon.color}` }}
-              />
-            </div>
-            <span style={{ minWidth: '40px' }}>{defcon.health}%</span>
+            <span>NEURAL HEALTH</span>
+            <div className="health-meter"><motion.div className="health-fill" animate={{ width: `${defcon.health}%` }} style={{ background: defcon.color, boxShadow: `0 0 10px ${defcon.color}` }} /></div>
+            <span>{defcon.health}%</span>
           </div>
-          <div className="node-identity">
-            LAST ATTACKER: <span style={{ color: lastAttacker !== 'NONE DETECTED' ? '#ef4444' : '#fff' }}>{lastAttacker === 'NONE DETECTED' ? lastAttacker : `${lastAttacker.slice(0, 10)}...`}</span>
-          </div>
-          <div className="node-identity">
-            GAS SAVED: <span style={{ color: '#10b981' }}>{gasSaved} GWEI</span>
-          </div>
+          <div className="node-identity">ATTACKER: <span>{lastAttacker === 'NONE DETECTED' ? 'CLEAN' : `${lastAttacker.slice(0, 10)}...`}</span></div>
+          <div className="node-identity">SAVINGS: <span style={{color: '#10b981'}}>{gasSaved} GWEI</span></div>
         </div>
-        <p>© 2026 SOMNIA FLUX // NATIVE REACTIVITY active</p>
+        <p>© 2026 SOMNIA FLUX // NATIVE REACTIVE active</p>
       </footer>
     </div>
   );

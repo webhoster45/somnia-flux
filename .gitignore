@@ -1,2 +1,14 @@
 .env
 node_modules/
+artifacts/
+cache/
+dist/
+.vite/
+*.txt
+out*.txt
+debug_*.js
+check_env.js
+deploy_and_subscribe.js
+frontend/
+vault-ui/node_modules/
+vault-ui/dist/
