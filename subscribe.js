@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, parseEther, formatEther } from "viem";
+import { createPublicClient, createWalletClient, http, parseEther, formatEther, getAddress } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import "dotenv/config";
 
@@ -19,7 +19,7 @@ const somniaShannonTestnet = {
 };
 
 // Somnia Reactivity Registry Contract (Shannon Testnet)
-const REGISTRY_ADDRESS = "0x94f1E5B4Af180907B5940082725f0132b85CC8c4";
+const REGISTRY_ADDRESS = getAddress("0x0000000000000000000000000000000000000101");
 const REGISTRY_ABI = [
     {
         "inputs": [
@@ -57,8 +57,10 @@ async function main() {
     }
 
     const account = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`);
-    const publicClient = createPublicClient({ chain: somniaShannonTestnet, transport: http() });
-    const walletClient = createWalletClient({ account, chain: somniaShannonTestnet, transport: http() });
+    const CLEAN_VAULT_ADDRESS = getAddress(VAULT_ADDRESS.trim());
+    
+    const publicClient = createPublicClient({ chain: somniaShannonTestnet, transport: http(undefined, { timeout: 60000 }) });
+    const walletClient = createWalletClient({ account, chain: somniaShannonTestnet, transport: http(undefined, { timeout: 60000 }) });
 
     const balance = await publicClient.getBalance({ address: account.address });
     console.log(`Wallet Balance: ${formatEther(balance)} STT`);
@@ -75,8 +77,8 @@ async function main() {
         chainId: BigInt(50312),
         sourceAddress: "0x0000000000000000000000000000000000000000", // Listen to network-wide native transfers
         eventSignature: "0x0000000000000000000000000000000000000000000000000000000000000000", 
-        destinationAddress: VAULT_ADDRESS,
-        functionSelector: "0x8848a529" // onEvent(bytes32,bytes)
+        destinationAddress: CLEAN_VAULT_ADDRESS,
+        functionSelector: "0x05e2e362" // onEvent(bytes32,bytes)
     };
 
     console.log("\nBroadcasting subscription to Somnia Registry...");

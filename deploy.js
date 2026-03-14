@@ -20,6 +20,8 @@ const somniaShannonTestnet = {
     },
 };
 
+const TIMEOUT = 300000; // 5 minutes for extremely slow RPCs
+
 async function main() {
     console.log("==========================================");
     console.log("Starting Reactive Firewall Deployment (via Viem)...");
@@ -34,15 +36,20 @@ async function main() {
     const account = privateKeyToAccount(PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`);
     console.log("Deploying from Neural Link:", account.address);
 
-    const publicClient = createPublicClient({
-        chain: somniaShannonTestnet,
-        transport: http()
+    const publicClient = createPublicClient({ 
+        chain: somniaShannonTestnet, 
+        transport: http(undefined, { 
+            fetchOptions: { timeout: TIMEOUT },
+            timeout: TIMEOUT 
+        }) 
     });
-
-    const walletClient = createWalletClient({
-        account,
-        chain: somniaShannonTestnet,
-        transport: http()
+    const walletClient = createWalletClient({ 
+        account, 
+        chain: somniaShannonTestnet, 
+        transport: http(undefined, { 
+            fetchOptions: { timeout: TIMEOUT },
+            timeout: TIMEOUT 
+        }) 
     });
 
     const balance = await publicClient.getBalance({ address: account.address });

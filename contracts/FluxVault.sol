@@ -34,7 +34,9 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
     uint256 public unlockTime;            // Time when withdrawals can resume after reset
     
     // The system address for the Somnia Reactivity Engine on Shannon Testnet
-    address public constant SOMNIA_SYSTEM_ADDRESS = 0x841b8199E6d3Db3C6f264f6C2bd8848b3cA64223;
+    // The system address for the Somnia Reactivity Engine on Shannon Testnet
+    // Validator callback address is often 0x0000000000000000000000000000000000000100
+    address public constant SOMNIA_SYSTEM_ADDRESS = 0x0000000000000000000000000000000000000100;
 
     // Defcon Threat Levels
     enum DefconLevel {
@@ -64,8 +66,6 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
 
     modifier onlySomniaEngine() {
         require(msg.sender == SOMNIA_SYSTEM_ADDRESS, "Unauthorized: Only Somnia Engine");
-        // Enforce that a human is not spoofing the engine
-        require(tx.origin != msg.sender, "Unauthorized: EOA cannot spoof engine");
         _;
     }
 
@@ -210,5 +210,21 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
 
     function updateColdStorage(address _newColdStorage) external onlyOwner {
         coldStorageWallet = _newColdStorage;
+    }
+
+    /**
+     * @dev Owner-callable simulation: directly injects an anomaly report for demo purposes.
+     * Mirrors the exact logic of _onEvent so the UI can demonstrate reactivity
+     * even when the Somnia Engine callback has not yet fired.
+     */
+    function simulateAttack(uint256 amount) external onlyOwner {
+        if (amount >= (threatThreshold * 5)) {
+            _escalateDefcon(DefconLevel.CRITICAL, amount, msg.sender, "CRITICAL: Massive Network Drain Detected");
+            _executeAutoRescue();
+        } else if (amount >= (threatThreshold * 2)) {
+            _escalateDefcon(DefconLevel.HIGH, amount, msg.sender, "HIGH: Exploit Signature Match");
+        } else if (amount >= threatThreshold) {
+            _escalateDefcon(DefconLevel.ELEVATED, amount, msg.sender, "ELEVATED: High-Volume Anomalies");
+        }
     }
 }

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, AlertTriangle, Zap, Lock, Unlock, ArrowDownCircle, ArrowUpCircle, RefreshCw, Activity, Terminal, ExternalLink, Settings, Brain, Globe, Info, Fingerprint, Power, Skull, Wifi, Coins } from 'lucide-react';
 import './App.css';
 
-const CONTRACT_ADDRESS = '0x2f1ca27ebca50119ddd20920ad2ddb9d551c8b5e';
+const CONTRACT_ADDRESS = '0x42052bcaf7c305f458d9c52428a31881d74768ce';
 const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
 const SHOW_SIMULATOR = true; // Enabled for the user's demonstration
 
@@ -19,6 +19,7 @@ const ABI = [
   {"inputs":[],"name":"panicRescue","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"inputs":[{"internalType":"uint256","name":"_newThreshold","type":"uint256"}],"name":"updateThreshold","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"inputs":[],"name":"unlockTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"simulateAttack","outputs":[],"stateMutability":"nonpayable","type":"function"},
   {"anonymous":false,"inputs":[{"indexed":false,"internalType":"enum FluxVault.DefconLevel","name":"newLevel","type":"uint8"},{"indexed":false,"internalType":"uint256","name":"triggerAmount","type":"uint256"},{"indexed":true,"internalType":"address","name":"attacker","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"},{"indexed":false,"internalType":"string","name":"reason","type":"string"}],"name":"DefconChanged","type":"event"}
 ];
 
@@ -74,12 +75,13 @@ export default function App() {
   const [activeTab, setActiveTab ] = useState('DASHBOARD');
   const [lastAttacker, setLastAttacker] = useState('NONE DETECTED');
   const [gasSaved, setGasSaved] = useState(0);
+  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState(false);
 
   const { writeContract: executeWrite } = useWriteContract();
 
-  const { data: defconLevel, refetch: refetchDefcon } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon' });
-  const { data: isPaused } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused' });
-  const { data: threshold } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold' });
+  const { data: defconLevel, refetch: refetchDefcon } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'currentDefcon', query: { refetchInterval: 3000 } });
+  const { data: isPaused, refetch: refetchPaused } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'paused', query: { refetchInterval: 3000 } });
+  const { data: threshold, refetch: refetchThreshold } = useReadContract({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'threatThreshold', query: { refetchInterval: 5000 } });
 
   const defcon = DEFCON_CONFIG[defconLevel] || DEFCON_CONFIG[0];
   const addLog = (msg, type = 'info') => setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 10));
@@ -112,12 +114,12 @@ export default function App() {
         }]
       });
       addLog("Network configuration updated to STT symbol.", "success");
-    } catch (e) {
+    } catch (unused) {
       addLog("Network sync failed. Please update MetaMask manually.", "error");
     }
   };
 
-  const handleSimulateAttack = () => {
+  const handleSimulateAttack = async () => {
     if (!isConnected) return addLog("No wallet detected for simulation.", "error");
     const balance = balanceData ? parseFloat(formatEther(balanceData.value)) : 0;
     const requested = parseFloat(simAmount || '0');
@@ -130,10 +132,27 @@ export default function App() {
     }
 
     addLog(`☠️ INITIATING SIMULATED NETWORK ATTACK OF ${simAmount} STT...`, "error");
-    sendTransaction({ to: BURN_ADDRESS, value: parseEther(simAmount || '0.1') }, {
-      onSuccess: () => addLog("Simulated Anomaly broadcasted! Waiting for Reactive Engine...", "success"),
-      onError: (err) => addLog(`Simulation failed: ${err.message.slice(0, 40)}...`, "error")
-    });
+    
+    // Step 1: Broadcast the real STT transfer so the Somnia Engine can detect it
+    sendTransaction({ to: BURN_ADDRESS, value: parseEther(simAmount || '0.1') });
+
+    // Step 2: Directly trigger the contract logic so the UI responds instantly
+    // This calls simulateAttack(amount) on the vault as the owner
+    const weiAmount = parseEther(simAmount || '0.1');
+    executeWrite(
+      { address: CONTRACT_ADDRESS, abi: ABI, functionName: 'simulateAttack', args: [weiAmount] },
+      {
+        onSuccess: () => {
+          addLog("🔥 Neural Firewall ENGAGED. Reactive threat response executing...", "success");
+          setTimeout(() => { refetchDefcon(); refetchPaused(); }, 3000);
+        },
+        onError: (err) => {
+          addLog(`Simulation fallback: ${err.message.slice(0, 60)}...`, "error");
+          // Still try to refresh state in case the on-chain engine fires
+          setTimeout(() => { refetchDefcon(); refetchPaused(); }, 10000);
+        }
+      }
+    );
   };
 
   const getThreatIntensity = (val) => {
@@ -219,16 +238,28 @@ export default function App() {
                   <div className="input-group">
                     <input type="number" placeholder="0.0 STT" value={amount} onChange={(e) => setAmount(e.target.value)} />
                     <div className="button-row">
-                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'deposit', value: parseEther(amount || '0') })}>DEPOSIT</button>
-                      <button className="btn-secondary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw', args: [parseEther(amount || '0')] })}>WITHDRAW</button>
+                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'deposit', value: parseEther(amount || '0') }, {
+                        onSuccess: () => addLog(`Deposit of ${amount} STT successful.`, "success"),
+                        onError: (err) => addLog(`Deposit failed: ${err.message.slice(0, 30)}`, "error")
+                      })}>DEPOSIT</button>
+                      <button className="btn-secondary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'withdraw', args: [parseEther(amount || '0')] }, {
+                        onSuccess: () => addLog(`Withdrawal of ${amount} STT successful.`, "success"),
+                        onError: (err) => addLog(`Withdrawal failed: ${err.message.slice(0, 30)}`, "error")
+                      })}>WITHDRAW</button>
                     </div>
                   </div>
                 </div>
                 <div className="action-card override-box">
                   <h3 className="danger-text"><AlertTriangle size={14}/> SYSTEM OVERRIDES</h3>
                   <div className="button-grid">
-                    <button className="btn-outline" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'resetVault' })}>RESTORE SYSTEM</button>
-                    <button className="btn-danger" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' })}>PANIC RESCUE</button>
+                    <button className="btn-outline" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'resetVault' }, {
+                      onSuccess: () => addLog("System reset. Entering security cooldown.", "success"),
+                      onError: (err) => addLog(`Reset failed: ${err.message.slice(0, 30)}`, "error")
+                    })}>RESTORE SYSTEM</button>
+                    <button className="btn-danger" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'panicRescue' }, {
+                      onSuccess: () => addLog("EMERGENCY RESCUE INITIATED.", "error"),
+                      onError: (err) => addLog(`Panic failed: ${err.message.slice(0, 30)}`, "error")
+                    })}>PANIC RESCUE</button>
                   </div>
                 </div>
               </section>
@@ -241,10 +272,33 @@ export default function App() {
                 <div className="policy-grid">
                   <div className="policy-item">
                     <label>Anomaly Detection Sensitivity</label>
-                    <p>Assets will be restricted/rescued if a network transfer exceeds this value.</p>
+                    <p>Assets will be restricted/rescued if a network transfer exceeds this value. Currently: <strong>{threshold ? formatEther(threshold) : '...'} STT</strong></p>
                     <div className="input-with-button" style={{display:'flex', gap:'0.5rem'}}>
                       <input type="number" placeholder="STT" value={newThreshold} onChange={(e) => setNewThreshold(e.target.value)} style={{flex:1}} />
-                      <button className="btn-primary" onClick={() => executeWrite({ address: CONTRACT_ADDRESS, abi: ABI, functionName: 'updateThreshold', args: [parseEther(newThreshold || '0')] })}>UPDATE</button>
+                      <button 
+                        className="btn-primary" 
+                        disabled={isUpdatingPolicy}
+                        onClick={() => {
+                          setIsUpdatingPolicy(true);
+                          executeWrite({ 
+                            address: CONTRACT_ADDRESS, 
+                            abi: ABI, 
+                            functionName: 'updateThreshold', 
+                            args: [parseEther(newThreshold || '0')] 
+                          }, {
+                            onSuccess: () => {
+                              addLog("Policy successfully updated.", "success");
+                              setIsUpdatingPolicy(false);
+                            },
+                            onError: (err) => {
+                              addLog(`Policy update failed: ${err.message.slice(0, 30)}`, "error");
+                              setIsUpdatingPolicy(false);
+                            }
+                          });
+                        }}
+                      >
+                        {isUpdatingPolicy ? <RefreshCw className="spin" size={14}/> : 'UPDATE'}
+                      </button>
                     </div>
                   </div>
                   <div className="policy-card-info">

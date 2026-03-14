@@ -47,7 +47,7 @@ async function main() {
     console.log(`Current Balance: ${formatEther(balanceBefore)} STT`);
 
     const burnAddress = "0x000000000000000000000000000000000000dEaD";
-    const exploitAmountSTT = "260"; 
+    const exploitAmountSTT = "5"; 
     const transferAmount = parseEther(exploitAmountSTT);
     
     if (balanceBefore < transferAmount) {
