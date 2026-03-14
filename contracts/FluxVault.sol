@@ -50,7 +50,7 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
     
     event Deposited(address indexed user, uint256 amount, uint256 timestamp);
     event Withdrawn(address indexed user, uint256 amount, uint256 timestamp);
-    event DefconChanged(DefconLevel newLevel, uint256 triggerAmount, uint256 timestamp, string reason);
+    event DefconChanged(DefconLevel newLevel, uint256 triggerAmount, address indexed attacker, uint256 timestamp, string reason);
     event VaultResetInitiated(uint256 availableAtTime);
     event ThresholdUpdated(uint256 newThreshold);
     event EmergencyRescueExecuted(uint256 rescuedAmount, address destination, uint256 timestamp);
@@ -103,31 +103,34 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
      * @dev Reactivity Entry Point: Triggered gaslessly by Somnia Reactivity Engine
      */
     function _onEvent(bytes32 /* subscriptionId */, bytes calldata data) internal override onlySomniaEngine {
-        // Decode the data representing a transfer amount on the broader state network
-        uint256 amount = abi.decode(data, (uint256));
+        uint256 amount;
+        address attacker = address(0);
+
+        // Advanced Profiling: Try to decode standard Transfer(from, to, value)
+        // If it fails (e.g. data is only amount), fallback to single uint256
+        if (data.length >= 96) {
+            (attacker, , amount) = abi.decode(data, (address, address, uint256));
+        } else {
+            amount = abi.decode(data, (uint256));
+        }
 
         // Evaluate the threat based on incoming stream anomaly depth
         if (amount >= (threatThreshold * 5)) {
-            // CRITICAL THREAT: Instant Lock + Auto-Rescue Protocol
-            _escalateDefcon(DefconLevel.CRITICAL, amount, "Critical Exploit Detected");
+            _escalateDefcon(DefconLevel.CRITICAL, amount, attacker, "CRITICAL: Massive Network Drain Detected");
             _executeAutoRescue();
-            
         } else if (amount >= (threatThreshold * 2)) {
-            // HIGH THREAT: Complete Vault Freeze
-            _escalateDefcon(DefconLevel.HIGH, amount, "High Threat Detected");
-            
+            _escalateDefcon(DefconLevel.HIGH, amount, attacker, "HIGH: Exploit Signature Match");
         } else if (amount >= threatThreshold) {
-            // ELEVATED THREAT: Limit Withdrawals
-            _escalateDefcon(DefconLevel.ELEVATED, amount, "Elevated Anomalies Detected");
+            _escalateDefcon(DefconLevel.ELEVATED, amount, attacker, "ELEVATED: High-Volume Anomalies");
         }
     }
 
-    function _escalateDefcon(DefconLevel newLevel, uint256 triggerAmount, string memory reason) private {
+    function _escalateDefcon(DefconLevel newLevel, uint256 triggerAmount, address attacker, string memory reason) private {
         // Only escalate upwards directly via Reactivity
         if (newLevel > currentDefcon) {
             currentDefcon = newLevel;
-            _pause(); // Instantly pause non-critical interactions
-            emit DefconChanged(newLevel, triggerAmount, block.timestamp, reason);
+            _pause(); 
+            emit DefconChanged(newLevel, triggerAmount, attacker, block.timestamp, reason);
         }
     }
 
@@ -185,7 +188,7 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
      * @dev Allows the owner to manually trigger an auto-rescue without Somnia Engine.
      */
     function panicRescue() external onlyOwner nonReentrant {
-        _escalateDefcon(DefconLevel.CRITICAL, 0, "Manual Panic Triggered");
+        _escalateDefcon(DefconLevel.CRITICAL, 0, msg.sender, "Manual Panic Triggered");
         _executeAutoRescue();
     }
 

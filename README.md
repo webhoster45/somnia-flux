@@ -1,92 +1,65 @@
-# 🌩️ Somnia Flux: Autonomous Security Firewall
+# 🌩️ Somnia Flux: Autonomous Neural Firewall
 
-> **Autonomous. Reactive. Gasless.**
-> Protecting Total Value Locked (TVL) on the Somnia Shannon Testnet with Real-Time On-Chain Intelligence.
+> **Autonomous. Reactive. Zero-Gas.**
+> Protecting Total Value Locked (TVL) on the Somnia Shannon Testnet with Real-Time Neural Intelligence.
 
 ---
 
-## 🛡️ The Problem: The $8B Vulnerability
-Smart contract exploits and liquidity drains happen in **milliseconds**. Traditional security relies on manual "Pause" functions or slow multisig responses. By the time an admin reacts, the funds are gone.
+## 🛡️ The Problem: The Block-Time Gap
+In traditional DeFi, exploits happen in milliseconds. Human response (multisigs, manual pauses) take minutes or hours. By then, the vault is empty.
 
 ## ⚡ The Solution: Somnia Flux
-**Somnia Flux** is a Programmable Security Firewall that utilizes **Somnia’s Native On-Chain Reactivity** to detect and neutralize threats the moment they happen—**without human intervention.**
+**Somnia Flux** is a sentient security layer. It doesn't just wait for an attack—it monitors the **entire Somnia state network** for anomalies and reacts *before* the attacker can finalize their drain.
 
 ### 💎 Key Innovations
-- **Zero-Gas Monitoring**: Leverages the Somnia Reactivity Engine to monitor the entire network for anomaly signals without paying gas for the logic.
-- **Atomic Auto-Rescue**: When a critical threat is detected, the vault automatically "Panics" and migrates all assets to a Cold Storage Wallet in the same block.
-- **Dynamic Defcon Scaling**: A multi-tiered response system that scales from standard operation to total freezing based on real-time network transfer volume.
+- **Neural Protection (Anomaly Detection)**: Unlike standard vaults that only watch their own balance, Somnia Flux monitors global network activity. If a massive drain (e.g., 500+ STT) occurs anywhere on the network, the firewall enters high-alert.
+- **Atomic Auto-Rescue**: In a CRITICAL breach, the vault automatically migrates 100% of its assets to a secure cold storage wallet in the same block as the detected threat.
+- **Zero-Gas Reactivity**: The Somnia Reactivity Engine triggers the firewall's logic gaslessly, ensuring that peak network congestion never slows down the defense.
 
 ---
 
-## 🏗️ Architecture
+## 🧩 Security Tiers (DEFCON)
 
-```mermaid
-graph TD
-    Node((Somnia Testnet)) -->|Emit Transfer Event| RE[Somnia Reactivity Engine]
-    RE -->|Gasless Trigger| SV[FluxVault.sol]
-    SV -->|Evaluate Amount| TS{Threat Scaler}
-    TS -->|Level 1| E[Elevated: Impose Limits]
-    TS -->|Level 2| H[High: Freeze Vault]
-    TS -->|Level 3| C[Critical: Auto-Rescue funds]
-    C -->|Secure Migration| CS[Cold Storage Wallet]
-```
+We follow the standard military DEFCON system for clarity:
 
----
-
-## 🧩 Advanced Security Tiers (Defcon)
-
-| Level | State | Trigger Condition | Automated Response |
+| Level | State | Trigger Condition | System Response |
 | :--- | :--- | :--- | :--- |
-| **5** | **NORMAL** | Standard Activity | Full Functionality |
-| **4** | **ELEVATED** | Above-threshold transfer | 10% Withdrawal limit enforced |
-| **3** | **HIGH** | Sequential large transfers | Vault completely frozen (Paused) |
-| **1** | **CRITICAL** | Massive Anomaly detected | **Instant Migration to Cold Storage** |
+| **5** | **SECURE** | Standard Activity | Shield Active |
+| **4** | **GUARD** | Large Transfer Detected | 10% Withdrawal Limit Imposed |
+| **3** | **SENTINEL** | Sequential Anomalies | **Vault Frozen (Paused)** |
+| **1** | **LOCKDOWN** | Massive Drain Detected | **Auto-Rescue: TVL Transferred to Cold Storage** |
 
 ---
 
-## 🚀 Technical Stack
-- **Network**: Somnia Shannon Testnet (Chain ID: 50312)
-- **Engine**: Somnia Reactivity Engine (@somnia-chain/streams)
-- **Smart Contracts**: Solidity 0.8.28 (OpenZeppelin ReentrancyGuard, Pausable)
-- **Frontend**: Vite + React + Framer Motion (Cyberpunk High-Fidelity Design)
-- **Web3**: Wagmi + Viem
+## 🚀 Live Simulation: How to Test the Shield
 
----
+To prove the power of Somnia's reactivity, we have provided a simulation script that triggers a global network anomaly.
 
-## 🛠️ Installation & Demo
-
-### 1. Prerequisites
-- Hardhat
-- NPM/Node.js
-- Funded Somnia Testnet Wallet (>32 STT)
-
-### 2. Setup
+### 1. The Setup
+Ensure your `.env` has your `PRIVATE_KEY` and `VAULT_ADDRESS`.
 ```bash
-git clone https://github.com/webhoster45/somnia-flux.git
-cd somnia-flux
 npm install
+node subscribe.js # Anchors the Neural Receptor to the network
 ```
 
-### 3. Deploy & Register
-```bash
-# Deploy to Shannon Testnet
-node deploy.js
-
-# Register Reactive Subscription (Requires 32 STT)
-# Remember to update .env with your VAULT_ADDRESS first!
-node subscribe.js
-```
-
-### 4. The Live Demo
-To see the firepower in action, run the simulation script while watching the dashboard:
+### 2. The Attack
+Run the simulation script. This script sends a massive anomalous transfer to a burn address to simulate a network-wide liquidity drain.
 ```bash
 node simulate_attack.js
 ```
-The script will broadcast a massive 260 STT transaction. The Somnia Engine will pick this up instantly, slamming the vault into **DEFCON 1** and rescuing the TVL.
+
+### 3. The Result
+Watch your **Vite Dashboard**. 
+1. The **Neural Map** will shift from Green to Red.
+2. The **Receptor Logs** will identify the anomaly depth.
+3. The **Auto-Rescue** event will fire, securing your vault's TVL instantly.
 
 ---
 
-## 🌌 Vision
-Somnia Flux isn't just a vault; it's a blueprint for the next generation of **Adaptive Cyber-Physical Security** in Web3. We are moving from passive smart contracts to active, sentient defenders.
+## 🛠️ Technical Stack
+- **Network**: Somnia Shannon Testnet (Chain ID: 50312)
+- **Engine**: Somnia Reactivity Engine (@somnia-chain/streams)
+- **UI**: Vite + React + Framer Motion (Michroma & Space Grotesk Typography)
+- **Library**: Viem + Wagmi
 
 Built for the **Somnia Reactivity Mini Hackathon**.
