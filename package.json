@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "hardhat": "^3.1.12",
+    "viem": "^2.47.2"
+  },
+  "name": "somnia-flux",
+  "version": "1.0.0",
+  "description": "",
+  "main": "deploy_and_subscribe.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.6",
+    "@openzeppelin/contracts": "^5.6.1",
+    "ethers": "^6.16.0"
+  }
+}

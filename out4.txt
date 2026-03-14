@@ -1,0 +1,4 @@
+
+Deployment crashed: TypeError: Cannot read properties of undefined (reading 'getSigners')
+    at main (file:///C:/Users/-/Documents/Projects/somnia%20flux/deploy.js:23:37)
+    at file:///C:/Users/-/Documents/Projects/somnia%20flux/deploy.js:53:1

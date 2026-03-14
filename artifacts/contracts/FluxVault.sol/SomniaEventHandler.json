@@ -1,0 +1,32 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "SomniaEventHandler",
+  "sourceName": "contracts/FluxVault.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "subscriptionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "name": "onEvent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/FluxVault.sol",
+  "buildInfoId": "solc-0_8_28-6081a17d3e1bbb50334dc0f0b8fb6bd58509a977"
+}
