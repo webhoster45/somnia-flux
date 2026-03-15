@@ -3,6 +3,11 @@
   command   = "npm run build"
   publish   = "vault-ui/dist"
 
+[build.environment]
+  # VAULT_ADDRESS is a public blockchain contract address, not a secret.
+  # Omit it from secrets scanning to prevent false-positive build failures.
+  SECRETS_SCAN_OMIT_KEYS = "VAULT_ADDRESS"
+
 [[redirects]]
   from = "/*"
   to   = "/index.html"
