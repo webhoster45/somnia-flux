@@ -1,7 +1,7 @@
 [build]
   base      = "vault-ui"
   command   = "npm run build"
-  publish   = "vault-ui/dist"
+  publish   = "dist"
 
 [build.environment]
   # VAULT_ADDRESS is a public blockchain contract address, not a secret.
