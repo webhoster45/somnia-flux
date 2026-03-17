@@ -6,7 +6,7 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636?logo=solidity)](https://soliditylang.org)
 
 > **Autonomous. Reactive. Secure.**
-> Protecting the Next Billion on the Somnia Shannon Testnet via Native On-Chain Reactivity.
+> Protecting the Next Billion on the Somnia via Native On-Chain Reactivity.
 
 ---
 
@@ -193,6 +193,28 @@ Somnia Flux is more than a firewall — it is the foundation for **Autonomous On
 | **Institutional Safeguards** | Provide a "Safe Mode" for institutional capital entering the Somnia ecosystem. |
 
 ---
+
+# Project Status & Known Limitations
+
+As **Somnia Flux** transitions from the Shannon Testnet toward Mainnet-readiness, we are transparent about our design choices and current technical constraints. We prioritize **safety, latency, and determinism** over marketing complexity.
+
+### 1. The "Neural" Framework (Heuristics vs. ML)
+*   **Current Status:** V1 utilizes a high-speed **Heuristic Receptor Engine**.
+*   **The Trade-off:** While "Neural" implies AI, we purposely implemented optimized static thresholds for the initial MVP. On a network with 100ms block times, heavy on-chain inference can lead to execution lag.
+*   **The Vision:** The current `_onEvent` logic is architected as a **Modular Receptor**. In V2, we will integrate Somnia Data Streams to ingest off-chain ML weights, moving from static "if-else" patterns to dynamic, AI-driven anomaly scores.
+
+### 2. False Positive Mitigation (The "Whale" Problem)
+*   **The Challenge:** High-volume legitimate transactions (Whale trades) could accidentally trigger a **DEFCON 1 "Auto-Rescue,"** causing a self-inflicted Denial of Service (DoS).
+*   **Implemented Solution:** We have introduced **Tiered Response Inertia**. DEFCON 1 triggers an immediate **Atomic Asset Lock** to prevent drain. However, the final "Rescue" (moving funds to cold storage) is held in an **Inertia Window of 120 blocks**. This allows a Decentralized Guardian or Multisig to "Veto" the rescue if the activity is verified as legitimate.
+
+### 3. Gas Efficiency & Network Overhead
+*   **The Challenge:** Subscribing to every transfer event via the `SomniaEngine` creates a high frequency of `onEvent` callbacks.
+*   **Optimization:** Flux uses **State-Differential Write Logic**. The contract avoids storage writes (`SSTORE`) unless a threat threshold is breached and the `defconLevel` actually changes. This ensures that 99.9% of transactions incur only the minimal execution cost of the callback.
+
+### 4. Subscription Scalability
+*   **Current Status:** Manual registration via `subscribe.js` requires **~32.1 STT**.
+*   **Roadmap:** We are exploring **Bitmask-based Event Filtering**. This will allow Flux to "subscribe" only to specific high-risk transaction types (e.g., transfers exceeding 5% of vault TVL), reducing total callback volume by an estimated **70%**.
+
 
 ## 🏆 Built for the Somnia Reactivity Hackathon 2026
 
