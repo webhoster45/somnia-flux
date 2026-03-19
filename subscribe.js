@@ -13,39 +13,47 @@ const somniaShannonTestnet = {
         symbol: "STT",
     },
     rpcUrls: {
-        default: { http: ["https://dream-rpc.somnia.network"] },
-        public: { http: ["https://dream-rpc.somnia.network"] },
+        default: { http: ["https://api.infra.testnet.somnia.network/"] },
+        public: { http: ["https://api.infra.testnet.somnia.network/"] },
     },
 };
 
-// Somnia Reactivity Registry Contract (Shannon Testnet)
-const REGISTRY_ADDRESS = getAddress("0x0000000000000000000000000000000000000101");
-const REGISTRY_ABI = [
+// Somnia Reactivity Precompile Address (Shannon Testnet)
+const PRECOMPILE_ADDRESS = getAddress("0x0000000000000000000000000000000000000100");
+const PRECOMPILE_ABI = [
     {
         "inputs": [
             {
                 "components": [
-                    { "internalType": "uint64", "name": "chainId", "type": "uint64" },
-                    { "internalType": "address", "name": "sourceAddress", "type": "address" },
-                    { "internalType": "bytes32", "name": "eventSignature", "type": "bytes32" },
-                    { "internalType": "address", "name": "destinationAddress", "type": "address" },
-                    { "internalType": "bytes4", "name": "functionSelector", "type": "bytes4" }
+                    { "internalType": "bytes32[4]", "name": "eventTopics", "type": "bytes32[4]" },
+                    { "internalType": "address", "name": "origin", "type": "address" },
+                    { "internalType": "address", "name": "caller", "type": "address" },
+                    { "internalType": "address", "name": "emitter", "type": "address" },
+                    { "internalType": "address", "name": "handlerContractAddress", "type": "address" },
+                    { "internalType": "bytes4", "name": "handlerFunctionSelector", "type": "bytes4" },
+                    { "internalType": "uint64", "name": "priorityFeePerGas", "type": "uint64" },
+                    { "internalType": "uint64", "name": "maxFeePerGas", "type": "uint64" },
+                    { "internalType": "uint64", "name": "gasLimit", "type": "uint64" },
+                    { "internalType": "bool", "name": "isGuaranteed", "type": "bool" },
+                    { "internalType": "bool", "name": "isCoalesced", "type": "bool" }
                 ],
-                "internalType": "struct SubscriptionRequest",
-                "name": "request",
+                "internalType": "struct SubscriptionData",
+                "name": "subData",
                 "type": "tuple"
             }
         ],
-        "name": "register",
-        "outputs": [],
-        "stateMutability": "payable",
+        "name": "subscribe",
+        "outputs": [
+            { "internalType": "uint256", "name": "subscriptionId", "type": "uint256" }
+        ],
+        "stateMutability": "nonpayable",
         "type": "function"
     }
 ];
 
 async function main() {
     console.log("==========================================");
-    console.log("🚀 ACTIVATING NEURAL RECEPTOR (SUBSCRIPTION)");
+    console.log("🚀 ACTIVATING NEURAL RECEPTOR (SUBSCRIPTION) V2");
     console.log("==========================================");
 
     const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -66,31 +74,39 @@ async function main() {
     console.log(`Wallet Balance: ${formatEther(balance)} STT`);
 
     if (balance < parseEther("32.1")) {
-        console.error("❌ INSUFFICIENT FUNDS: Reactivity subscription requires exactly 32 STT fee + gas.");
+        console.error("❌ INSUFFICIENT FUNDS: Reactivity subscription requires owner to hold 32 STT fee + gas.");
         process.exit(1);
     }
 
     console.log(`\nNeural Anchor: ${VAULT_ADDRESS}`);
-    console.log("Subscription Fee: 32 STT (Handled Automatically)");
 
-    const request = {
-        chainId: BigInt(50312),
-        sourceAddress: "0x0000000000000000000000000000000000000000", // Listen to network-wide native transfers
-        eventSignature: "0x0000000000000000000000000000000000000000000000000000000000000000", 
-        destinationAddress: CLEAN_VAULT_ADDRESS,
-        functionSelector: "0x05e2e362" // onEvent(bytes32,bytes)
+    // The function selector for onEvent(address,bytes32[],bytes) is 0x53edf33d
+    const transferEvent = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const emptyTopic = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    
+    const subData = {
+        eventTopics: [transferEvent, emptyTopic, emptyTopic, emptyTopic],
+        origin: "0x0000000000000000000000000000000000000000",
+        caller: "0x0000000000000000000000000000000000000000",
+        emitter: "0x0000000000000000000000000000000000000000",
+        handlerContractAddress: CLEAN_VAULT_ADDRESS,
+        handlerFunctionSelector: "0x53edf33d", // onEvent(address,bytes32[],bytes)
+        priorityFeePerGas: 0n,         // Recommended default
+        maxFeePerGas: 10000000000n,    // 10 gwei
+        gasLimit: 3000000n,            // Safe limit
+        isGuaranteed: true,
+        isCoalesced: false
     };
 
-    console.log("\nBroadcasting subscription to Somnia Registry...");
+    console.log("\nBroadcasting subscription to Somnia Precompile (0x100)...");
     
     try {
         const { request: callRequest } = await publicClient.simulateContract({
             account,
-            address: REGISTRY_ADDRESS,
-            abi: REGISTRY_ABI,
-            functionName: "register",
-            args: [request],
-            value: parseEther("32")
+            address: PRECOMPILE_ADDRESS,
+            abi: PRECOMPILE_ABI,
+            functionName: "subscribe",
+            args: [subData]
         });
 
         const hash = await walletClient.writeContract(callRequest);
@@ -103,7 +119,6 @@ async function main() {
 
     } catch (error) {
         console.error("\n❌ SUBSCRIPTION FAILED:", error.message);
-        console.log("\nNOTE: If the Registry address is outdated, ensure you use the latest Somnia SDK.");
     }
 }
 

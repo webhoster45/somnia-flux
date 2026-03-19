@@ -9,11 +9,11 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * @dev Base contract interface interacting with the Somnia Reactivity Engine.
  */
 abstract contract SomniaEventHandler {
-    function _onEvent(bytes32 subscriptionId, bytes calldata data) internal virtual;
+    function _onEvent(address emitter, bytes32[] calldata eventTopics, bytes calldata data) internal virtual;
     
     // The entry point called by the reactivity engine
-    function onEvent(bytes32 subscriptionId, bytes calldata data) external {
-        _onEvent(subscriptionId, data);
+    function onEvent(address emitter, bytes32[] calldata eventTopics, bytes calldata data) external {
+        _onEvent(emitter, eventTopics, data);
     }
 }
 
@@ -102,7 +102,7 @@ contract FluxVault is SomniaEventHandler, ReentrancyGuard, Pausable {
     /**
      * @dev Reactivity Entry Point: Triggered gaslessly by Somnia Reactivity Engine
      */
-    function _onEvent(bytes32 /* subscriptionId */, bytes calldata data) internal override onlySomniaEngine {
+    function _onEvent(address /* emitter */, bytes32[] calldata /* eventTopics */, bytes calldata data) internal override onlySomniaEngine {
         uint256 amount;
         address attacker = address(0);
 

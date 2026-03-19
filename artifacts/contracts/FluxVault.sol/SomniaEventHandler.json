@@ -6,9 +6,14 @@
     {
       "inputs": [
         {
-          "internalType": "bytes32",
-          "name": "subscriptionId",
-          "type": "bytes32"
+          "internalType": "address",
+          "name": "emitter",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32[]",
+          "name": "eventTopics",
+          "type": "bytes32[]"
         },
         {
           "internalType": "bytes",
@@ -28,5 +33,5 @@
   "deployedLinkReferences": {},
   "immutableReferences": {},
   "inputSourceName": "project/contracts/FluxVault.sol",
-  "buildInfoId": "solc-0_8_28-60a40609515e5ea90948c9334aa1eadd4c7ad4d3"
+  "buildInfoId": "solc-0_8_28-e462a4835b832b97b9d5a00fbdc88a4fe5545f33"
 }

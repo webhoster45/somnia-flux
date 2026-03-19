@@ -59,14 +59,14 @@ Somnia Flux moves the **Immune System onto the base layer**. The Somnia Reactivi
 
 ### 🧠 Neural Anomaly Detection
 
-`FluxVault` subscribes to a global stream of native transfers via Somnia's **Reactivity Registry** (`0x...0101`). When the Somnia Engine detects a large-volume anomaly, it calls `onEvent()` on the vault — block-atomically.
+`FluxVault` subscribes to a global stream of native transfers via the Somnia **Reactivity Precompile** (`0x...0100`). When the Somnia Engine detects a large-volume anomaly, it calls `onEvent()` on the vault — block-atomically.
 
 ### ⚡ The Neural Receptor (`_onEvent`)
 
 Our core innovation is the optimized handling of the `SomniaEventHandler` callback:
 
 ```solidity
-function _onEvent(bytes32 /* subscriptionId */, bytes calldata data) internal override onlySomniaEngine {
+function _onEvent(address /* emitter */, bytes32[] calldata /* eventTopics */, bytes calldata data) internal override onlySomniaEngine {
     uint256 amount;
     address attacker = address(0);
 
@@ -117,10 +117,9 @@ User Action → STT Transfer → Somnia Network
 | :--- | :--- |
 | **Network** | Somnia Shannon Testnet |
 | **Chain ID** | `50312` |
-| **RPC URL** | `https://dream-rpc.somnia.network` |
-| **FluxVault Contract** | `0x42052bcaf7c305f458d9c52428a31881d74768ce` |
-| **Reactivity Registry** | `0x0000000000000000000000000000000000000101` |
-| **Engine Callback Address** | `0x0000000000000000000000000000000000000100` |
+| **RPC URL** | `https://api.infra.testnet.somnia.network/` |
+| **FluxVault Contract** | `0x252c888d10f8eb486e8fe42259952bda25531c05` |
+| **Somnia Reactivity Precompile** | `0x0000000000000000000000000000000000000100` |
 
 ---
 
@@ -137,9 +136,9 @@ User Action → STT Transfer → Somnia Network
 
 2. Create a `.env` file:
    ```
-   PRIVATE_KEY=your_wallet_private_key
-   VAULT_ADDRESS=0x42052bcaf7c305f458d9c52428a31881d74768ce
-   ```
+    PRIVATE_KEY=your_wallet_private_key
+    VAULT_ADDRESS=0x252c888d10f8eb486e8fe42259952bda25531c05
+    ```
 
 ### Redeployment (if needed)
 ```bash
@@ -151,7 +150,7 @@ node deploy.js
 ```bash
 node subscribe.js
 ```
-> Requires **~32.1 STT** (32 STT registry fee + gas). Get testnet STT from the [Somnia Faucet](https://faucet.somnia.network/).
+> Requires the deployer wallet to hold **32 STT** (for the registry minimum balance) + gas. Get testnet STT from the [Somnia Faucet](https://faucet.somnia.network/).
 
 ### Adjust Neural Sensitivity (Threshold)
 ```bash
@@ -176,9 +175,9 @@ node simulate_attack.js
 
 | Contract | Address | Purpose |
 | :--- | :--- | :--- |
-| **Reactivity Registry** | `0x0000000000000000000000000000000000000101` | Register subscriptions |
-| **Somnia Engine** | `0x0000000000000000000000000000000000000100` | `onEvent()` caller / `msg.sender` in `onlySomniaEngine` |
-| **Multicall3** | `0x841b8199E6d3Db3C6f264f6C2bd8848b3cA64223` | Infrastructure only (not the registry) |
+| **Reactivity Precompile** | `0x0000000000000000000000000000000000000100` | Registry & `onEvent()` Caller |
+| **Multicall3** | `0x5e44F178E8cF9B2F5409B6f18ce936aB817C5a11` | Standard Utility |
+| **WSOMI** | `0x046EDe9564A72571df6F5e44d0405360c0f4dCab` | Wrapped SOMI |
 
 ---
 
@@ -223,4 +222,17 @@ Somnia Flux proves on-chain security can be **proactive, autonomous, and blazing
 > *"We didn't build a smarter lock. We built an immune system."*
 
 ---
+---
+
+## 🔍 Verification (For DevRel Review)
+
+To verify the system is reactive:
+1. Ensure `VAULT_ADDRESS` in `.env` is `0x252c...c05`.
+2. Run `node subscribe.js` (Subscription Tx: `0x5682...`).
+3. Run `node simulate_attack.js`.
+4. Observe the terminal: 
+   - A `Transfer` event is emitted.
+   - The Reactivity Engine triggers `onEvent()` on the Vault.
+   - The Vault logs `[Escalation Vector]` and increases the **DEFCON level** from 5 (NORMAL) to 4 (ELEVATED).
+
 © 2026 Somnia Flux // Powered by Somnia Shannon Testnet

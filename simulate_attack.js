@@ -13,8 +13,8 @@ const somniaShannonTestnet = {
         symbol: "STT",
     },
     rpcUrls: {
-        default: { http: ["https://dream-rpc.somnia.network"] },
-        public: { http: ["https://dream-rpc.somnia.network"] },
+        default: { http: ["https://api.infra.testnet.somnia.network/"] },
+        public: { http: ["https://api.infra.testnet.somnia.network/"] },
     },
 };
 
